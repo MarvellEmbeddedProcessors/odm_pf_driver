@@ -1,0 +1,13 @@
+[Unit]
+Description=ODM PF driver service
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/odm_pf_driver
+Restart=always
+User=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
