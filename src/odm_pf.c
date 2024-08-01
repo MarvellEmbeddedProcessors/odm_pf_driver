@@ -24,7 +24,7 @@ odm_queue_reset(struct odm_dev *odm_pf, uint8_t qid)
 static void
 odm_queue_init(struct odm_dev *odm_pf, uint8_t vf_id, uint8_t qid)
 {
-	uint8_t hw_qid = vf_id * odm_pf->maxq_per_vf + qid;
+	uint8_t hw_qid = vf_id * odm_pf->pmem->maxq_per_vf + qid;
 	uint64_t reg;
 
 	odm_queue_reset(odm_pf, hw_qid);
@@ -32,19 +32,19 @@ odm_queue_init(struct odm_dev *odm_pf, uint8_t vf_id, uint8_t qid)
 	reg |= ODM_DMA_IDS_DMA_STRM(vf_id + 1);
 	reg |= ODM_DMA_IDS_INST_STRM(vf_id + 1);
 	odm_reg_write(odm_pf, ODM_DMAX_IDS(hw_qid), reg);
-	odm_pf->setup_done[vf_id] = true;
+	odm_pf->pmem->setup_done[vf_id] = true;
 }
 
 static void
 odm_queues_fini(struct odm_dev *odm_pf, uint8_t vf_id)
 {
-	int maxqs_per_vf = odm_pf->maxq_per_vf;
+	int maxqs_per_vf = odm_pf->pmem->maxq_per_vf;
 	int qid, hw_qid_start;
 
 	hw_qid_start = vf_id * maxqs_per_vf;
 	for (qid = hw_qid_start; qid < hw_qid_start + maxqs_per_vf; qid++)
 		odm_queue_reset(odm_pf, qid);
-	odm_pf->setup_done[vf_id] = false;
+	odm_pf->pmem->setup_done[vf_id] = false;
 }
 
 static int
@@ -345,10 +345,12 @@ odm_init(struct odm_dev *odm_pf, struct odm_dev_config *dev_cfg)
 	if (odm_pf_create_vfs(dev_cfg))
 		return -1;
 
-	odm_pf->vfs_in_use = dev_cfg->num_vfs;
-	odm_pf->maxq_per_vf = ODM_MAX_QUEUES / dev_cfg->num_vfs;
 	reg = (((__builtin_ffs(dev_cfg->num_vfs) - 2) & 0x3) << 4) | ODM_CTL_EN;
 	odm_reg_write(odm_pf, ODM_CTL, reg);
+
+	odm_pf->pmem->vfs_in_use = dev_cfg->num_vfs;
+	odm_pf->pmem->maxq_per_vf = ODM_MAX_QUEUES / dev_cfg->num_vfs;
+	odm_pf->pmem->dev_state = ODM_DEV_STATE_INIT_DONE;
 
 	return 0;
 }
@@ -391,11 +393,13 @@ odm_pf_probe(struct odm_dev_config *dev_cfg)
 
 	log_write(LOG_DEBUG, "%s: Probe successful\n", odm_pf->pdev.name);
 
-	/* Initialize global PF registers */
-	err = odm_init(odm_pf, dev_cfg);
-	if (err) {
-		log_write(LOG_ERR, "Failed to initialize odm\n");
-		goto free_pmem;
+	if (odm_pf->pmem->dev_state == ODM_DEV_STATE_INIT) {
+		/* Initialize global PF registers */
+		err = odm_init(odm_pf, dev_cfg);
+		if (err) {
+			log_write(LOG_ERR, "Failed to initialize ODM\n");
+			goto free_pmem;
+		}
 	}
 
 	/* Register interrupts */
@@ -412,6 +416,8 @@ odm_pf_probe(struct odm_dev_config *dev_cfg)
 		goto free_irq;
 	}
 
+	log_write(LOG_INFO, "ODM: PF probe is done\n");
+	odm_pf->pmem->dev_state = ODM_DEV_STATE_RUNNING;
 	return odm_pf;
 
 free_irq:
@@ -456,5 +462,6 @@ odm_pf_release(struct odm_dev *odm_pf)
 		pmem_free("/odm_pmem");
 	if (odm_pf->pdev.device_fd)
 		vfio_pci_device_free(&odm_pf->pdev);
+	log_write(LOG_INFO, "ODM: PF release is done\n");
 	free(odm_pf);
 }

@@ -171,8 +171,17 @@ struct odm_irq_mem {
 	uint16_t index;
 };
 
+enum odm_state {
+	ODM_DEV_STATE_INIT,
+	ODM_DEV_STATE_INIT_DONE,
+	ODM_DEV_STATE_RUNNING
+};
+
 struct pmem_data {
-	uint64_t rsvd;
+	enum odm_state dev_state;
+	int maxq_per_vf;
+	int vfs_in_use;
+	bool setup_done[ODM_MAX_VFS];
 };
 
 struct odm_dev_config {
@@ -184,12 +193,8 @@ struct odm_dev_config {
 struct odm_dev {
 	struct vfio_pci_device pdev;
 	struct pmem_data *pmem;
-	int total_vfs;
-	int maxq_per_vf;
-	int vfs_in_use;
 	int num_vecs;
 	struct odm_irq_mem *irq_mem;
-	bool setup_done[ODM_MAX_VFS];
 	pthread_t thread[ODM_MAX_VFS];
 	struct odm_mbox_work mbox_work[ODM_MAX_VFS];
 };
