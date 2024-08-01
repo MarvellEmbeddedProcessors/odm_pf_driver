@@ -18,6 +18,8 @@
 #include <pthread.h>
 #include <stdint.h>
 
+#include "uuid.h"
+
 struct vfio_pci_mem_resouce {
 	uint32_t index; /**< Resource index. */
 	uint8_t *addr;  /**< Mapped virtual address. */
@@ -33,6 +35,7 @@ struct vfio_intr_data {
 /** VFIO PCI device */
 struct vfio_pci_device {
 	char name[32];                    /**< PCI BDF */
+	uint8_t uuid[UUID_LEN];
 	int device_fd;                    /**< VFIO device fd */
 	int group_fd;                     /**< VFIO group fd */
 	unsigned int num_resource;        /**< Number of device resources */

@@ -17,6 +17,7 @@
 
 #include "log.h"
 #include "vfio_pci.h"
+#include "uuid.h"
 
 #define VFIO_MAX_GROUPS    8
 #define VFIO_GROUP_FMT     "/dev/vfio/%u"
@@ -217,6 +218,7 @@ vfio_pci_device_setup(struct vfio_pci_device *pdev)
 	if (group_fd < 0)
 		return -1;
 
+	memcpy(pdev->uuid, uuid_gbl, UUID_LEN);
 	rc = ioctl(group_fd, VFIO_GROUP_GET_STATUS, &group_status);
 	if (rc < 0) {
 		log_write(LOG_ERR, "%s: failed to get group status, %s\n", pdev->name,
@@ -250,6 +252,19 @@ vfio_pci_device_setup(struct vfio_pci_device *pdev)
 		}
 	}
 
+	if (!uuid_is_null(pdev->uuid)) {
+		char vf_token_str[UUID_STRLEN];
+		char dev[PATH_MAX];
+
+		uuid_unparse(pdev->uuid, vf_token_str, sizeof(vf_token_str));
+		snprintf(dev, sizeof(dev),
+			 "%s vf_token=%s", pdev->name, vf_token_str);
+
+		device_fd = ioctl(group_fd, VFIO_GROUP_GET_DEVICE_FD, dev);
+		if (device_fd >= 0)
+			goto dev_get_info;
+	}
+
 	device_fd = ioctl(group_fd, VFIO_GROUP_GET_DEVICE_FD, pdev->name);
 	if (device_fd < 0) {
 		log_write(LOG_ERR, "%s: failed to get device fd, %s\n", pdev->name,
@@ -257,6 +272,7 @@ vfio_pci_device_setup(struct vfio_pci_device *pdev)
 		goto clear_group;
 	}
 
+dev_get_info:
 	rc = ioctl(device_fd, VFIO_DEVICE_GET_INFO, &device_info);
 	if (rc) {
 		log_write(LOG_ERR, "%s: failed to get device info, %s\n", pdev->name,

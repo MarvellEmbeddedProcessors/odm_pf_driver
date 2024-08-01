@@ -14,10 +14,22 @@
 #include "odm_pf.h"
 #include "odm_pf_selftest.h"
 #include "pmem.h"
+#include "uuid.h"
 #include "vfio_pci.h"
 
 static struct odm_dev *odm_pf;
 static volatile sig_atomic_t quit_signal;
+
+enum {
+	OPT_LONG_MIN_NUM = 256,
+	OPT_VFIO_VF_TOKEN_NUM,
+	OPT_LONG_MAX_NUM
+};
+
+const struct option long_options[] = {
+	{"vfio-vf-token",     1, NULL, OPT_VFIO_VF_TOKEN_NUM},
+	{0,                   0, NULL, 0                    }
+};
 
 void
 signal_handler(int sig_num)
@@ -31,10 +43,12 @@ signal_handler(int sig_num)
 void
 print_usage(const char *prog_name)
 {
-	fprintf(stderr, "Usage: %s [-c] [-l log_level] [-s]\n", prog_name);
+	fprintf(stderr, "Usage: %s [-c] [-l log_level] [-s] --vfio-vf-token uuid\n", prog_name);
 	fprintf(stderr, "  -c             Enable console logging (default disabled)\n");
 	fprintf(stderr, "  -l log_level   Set global log level (0-7) (default LOG_INFO)\n");
 	fprintf(stderr, "  -s             Run self test\n");
+	fprintf(stderr, "  --vfio-vf-token uuid  Randomly generated vf token to be used by both PF"
+		"and VF\n");
 	exit(EXIT_FAILURE);
 }
 
@@ -43,9 +57,13 @@ main(int argc, char *argv[])
 {
 	bool do_self_test = false, console_logging_enabled = false;
 	int log_lvl = LOG_INFO;
+	int option_index;
 	int opt, rc = 0;
+	char **argvopt;
 
-	while ((opt = getopt(argc, argv, "csl:")) != -1) {
+	argvopt = argv;
+	while ((opt = getopt_long(argc, argvopt, "csl:",
+				  long_options, &option_index)) != EOF) {
 		switch (opt) {
 		case 'c':
 			console_logging_enabled = true;
@@ -59,6 +77,12 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			do_self_test = true;
+			break;
+		case OPT_VFIO_VF_TOKEN_NUM:
+			if (parse_uuid(optarg, uuid_gbl) < 0) {
+				fprintf(stderr, "invalid parameters for --vfio-vf-token");
+				print_usage(argv[0]);
+			}
 			break;
 		default:
 			print_usage(argv[0]);
