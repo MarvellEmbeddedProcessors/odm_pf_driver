@@ -21,6 +21,13 @@ background and manage the ODM PF device. Using the systemctl command, the
 service can be started, stopped, and monitored. The driver supports various
 arguments to control its behavior.
 
+The service generates vfio tokien or UUID. It updates the odm_pf_driver.cfg
+with the newly generated UUID. The UUID will be genrated once after every boot.
+User can refer to the odm_pf_driver.cfg to get the UUID, which need to be passed
+as vfio-token while using VFs.
+
+The service will also unbind the ODM PF device from the current driver and binds
+it to the vfio-pci driver.
 
 Installing the driver
 ----------------------
@@ -35,8 +42,9 @@ The driver can be built and installed natively using the following command:
    meson build
    ninja -C build install
 
-Above command will install the driver in `/usr/local/bin/` directory and the
-service file in `/etc/systemd/system/` directory.
+Above command will install the driver in `/usr/local/bin/` directory, the
+service file in `/etc/systemd/system/` directory and config file and
+script in `/etc`.
 
 Cross Build and Installation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -51,8 +59,8 @@ The driver can be built for aarch64 using the following command:
 Above command will build the driver for aarch64. The binary can be found in
 `build` directory. Copy the binary to the target board and install it in
 `/usr/local/bin/` directory. The service file can be copied to
-`/etc/systemd/system/` directory.
-
+`/etc/systemd/system/` directory. The config file and script can be copied
+to `/etc`.
 
 Driver application arguments
 ----------------------------
@@ -93,8 +101,8 @@ queue.
 ``uuid`` is a value generated using the cmd 'uuidgen'. This value
 need to be passed to both PF and VF as vfio-vf-token.
 
-``n`` is the number of VFs to vreate. If no value is passed, default 4 VFs will be
-created. The valid number of VFs are: 2,4,8,16.
+``n`` is the number of VFs to create. If no value is passed, default 4 VFs will
+be created. The valid number of VFs are: 2,4,8,16.
 
 Running the driver as a systemd Service
 ----------------------------------------
@@ -108,7 +116,11 @@ The driver can be started as a systemd service using the
 1. Make sure the `odm_pf_driver` binary is installed in the `/usr/local/bin/`.
 2. Make sure the `odm_pf_driver.service` file is installed in the
    `/etc/systemd/system/` directory.
-3. Run the following commands:
+3. Make sure the `odm_pf_driver.cfg` file is installed in the
+   `/etc/` directory.
+4. Make sure the `odm_pf_driver_prestart.sh` file is installed in the
+   `/etc/` directory.
+5. Run the following commands:
 
    .. code-block:: shell
 
@@ -155,15 +167,18 @@ After updating the `odm_pf_driver.service` file, run the following commands:
 Using config file to update the arguments in the service
 --------------------------------------------------------
 
-The `odm_pf.cfg` file can be updated with the new values for UUID and eng_sel.
-The location of file will be: /etc/odm_pf.cfg
+The `odm_pf_driver.cfg` file can be updated with the new values for UUID, eng_sel
+and num_vfs.
+The location of file will be: /etc/odm_pf_driver.cfg
 
-After updating the `odm_pf.cfg` file, run the following commands:
+After updating the `odm_pf_driver.cfg` file, run the following commands:
 
 .. code-block:: shell
 
    sudo systemctl daemon-reload
    sudo systemctl restart odm_pf_driver.service
+
+Make sure that no VFs are being used, when daemon gets reloaded.
 
 Uninstalling the driver
 -----------------------
