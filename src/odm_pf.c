@@ -9,6 +9,117 @@
 #include "odm_pf.h"
 #include "pmem.h"
 #include "vfio_pci.h"
+#include "vfio_pci_irq.h"
+
+static void
+odm_irq_free(struct odm_dev *odm_pf)
+{
+	int i = 0;
+
+	/* Clear All Enables */
+	odm_reg_write(odm_pf, ODM_PF_RAS_ENA_W1C, ODM_PF_RAS_INT);
+
+	for (i = 0; i < ODM_MAX_REQQ_INT; i++) {
+		odm_reg_write(odm_pf, ODM_REQQX_INT(i), ODM_REQQ_INT);
+		odm_reg_write(odm_pf, ODM_REQQX_INT_ENA_W1C(i), ODM_REQQ_INT);
+	}
+
+	for (i = 0; i < odm_pf->num_vecs; i++) {
+		vfio_pci_irq_unregister(&odm_pf->pdev, i);
+		vfio_pci_msix_disable(&odm_pf->pdev, i);
+	}
+	free(odm_pf->irq_mem);
+	odm_pf->irq_mem = NULL;
+	odm_pf->num_vecs = 0;
+}
+
+static
+void odm_pf_irq_handler(void *odm_irq)
+{
+	struct odm_irq_mem *irq_mem = (struct odm_irq_mem *)odm_irq;
+	uint64_t reg_val;
+
+	if (irq_mem->index < ODM_MAX_REQQ_INT) {
+		reg_val = odm_reg_read(irq_mem->odm_pf, ODM_REQQX_INT(irq_mem->index));
+		odm_reg_write(irq_mem->odm_pf, ODM_REQQX_INT(irq_mem->index), reg_val);
+	} else if (irq_mem->index == ODM_PF_RAS_IRQ) {
+		reg_val = odm_reg_read(irq_mem->odm_pf, ODM_PF_RAS);
+		log_write(LOG_ERR, "RAS_INT: 0x%016lx\n", reg_val);
+		odm_reg_write(irq_mem->odm_pf, ODM_PF_RAS, reg_val);
+	} else if (irq_mem->index == ODM_NCBO_ERR_IRQ) {
+		reg_val = odm_reg_read(irq_mem->odm_pf, ODM_NCBO_ERR_INFO);
+		log_write(LOG_ERR, "NCB_ERR_INT: 0x%016lx\n", reg_val);
+		odm_reg_write(irq_mem->odm_pf, ODM_NCBO_ERR_INFO, reg_val);
+	} else {
+		log_write(LOG_ERR, "invalid intr index: 0x%x\n", irq_mem->index);
+	}
+}
+
+static int
+odm_irq_init(struct odm_dev *odm_pf)
+{
+	uint16_t i, irq = 0;
+	int ret;
+
+	odm_pf->num_vecs = odm_pf->pdev.intr.count;
+
+	odm_pf->irq_mem = calloc(odm_pf->num_vecs, sizeof(struct odm_irq_mem));
+	if (odm_pf->irq_mem == NULL) {
+		odm_pf->num_vecs = 0;
+		return -ENOMEM;
+	}
+
+	/* Clear all interrupts and interrupt enables*/
+	odm_reg_write(odm_pf, ODM_PF_RAS, ODM_PF_RAS_INT);
+	odm_reg_write(odm_pf, ODM_PF_RAS_ENA_W1C, ODM_PF_RAS_INT);
+
+	for (i = 0; i < ODM_MAX_REQQ_INT; i++) {
+		odm_reg_write(odm_pf, ODM_REQQX_INT(i), ODM_REQQ_INT);
+		odm_reg_write(odm_pf, ODM_REQQX_INT_ENA_W1C(i), ODM_REQQ_INT);
+	}
+
+	for (irq = 0; irq < odm_pf->num_vecs; irq++) {
+		odm_pf->irq_mem[irq].odm_pf = odm_pf;
+		odm_pf->irq_mem[irq].index = irq;
+		if (irq == ODM_MBOX_VF_PF_IRQ)
+			continue;
+
+		ret = vfio_pci_msix_enable(&odm_pf->pdev, irq);
+		if (ret) {
+			log_write(LOG_ERR, "ODM_PF: IRQ(%d) enable failed\n", irq);
+			goto irq_unregister;
+		}
+
+		ret = vfio_pci_irq_register(&odm_pf->pdev, irq, odm_pf_irq_handler,
+					    (void *)&odm_pf->irq_mem[irq]);
+		if (ret) {
+			vfio_pci_msix_disable(&odm_pf->pdev, irq);
+			log_write(LOG_ERR, "ODM_PF: IRQ(%d) registration failed\n", irq);
+			goto irq_unregister;
+		}
+	}
+
+	/* Enable all interrupts */
+	for (i = 0; i < ODM_MAX_REQQ_INT; i++)
+		odm_reg_write(odm_pf, ODM_REQQX_INT_ENA_W1S(i), ODM_REQQ_INT);
+
+	odm_reg_write(odm_pf, ODM_PF_RAS_ENA_W1S, ODM_PF_RAS_INT);
+
+	return 0;
+
+irq_unregister:
+	for (i = 0; i < irq; i++) {
+		if (irq == ODM_MBOX_VF_PF_IRQ)
+			continue;
+		vfio_pci_irq_unregister(&odm_pf->pdev, i);
+		vfio_pci_msix_disable(&odm_pf->pdev, i);
+	}
+	free(odm_pf->irq_mem);
+	odm_pf->irq_mem = NULL;
+	odm_pf->num_vecs = 0;
+
+	return -1;
+}
 
 static int
 odm_init(struct odm_dev *odm_pf)
@@ -82,8 +193,16 @@ odm_pf_probe()
 		goto init_fail;
 	}
 
-	return odm_pf;
+	/* Register interrupts */
+	err = odm_irq_init(odm_pf);
+	if (err) {
+		log_write(LOG_ERR, "ODM: Failed to initialize irq vectors\n");
+		goto irq_fail;
+	}
 
+	return odm_pf;
+irq_fail:
+	odm_fini(odm_pf);
 init_fail:
 	pmem_free("/odm_pmem");
 pmem_fail:
@@ -100,6 +219,7 @@ odm_pf_release(struct odm_dev *odm_pf)
 	if (odm_pf == NULL)
 		return;
 
+	odm_irq_free(odm_pf);
 	odm_fini(odm_pf);
 	if (odm_pf->pmem)
 		pmem_free("/odm_pmem");

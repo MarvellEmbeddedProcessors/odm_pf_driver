@@ -8,6 +8,10 @@
 #include "vfio_pci.h"
 #include "errno.h"
 
+#ifndef BIT_ULL
+#define BIT_ULL(nr) (1ULL << (nr))
+#endif
+
 #define ODM_PF_PCI_BDF "0000:08:00.0"
 
 /* PCI BAR nos */
@@ -89,6 +93,7 @@
 #define ODM_NCB_CFG				(0x100A0ULL)
 #define ODM_ENGX_BUF(x)				(0x100C0ULL | ((x) << 3))
 #define ODM_PF_RAS				(0x10308ULL)
+#define ODM_PF_RAS_W1S				(0x10310ULL)
 #define ODM_PF_RAS_ENA_W1C			(0x10318ULL)
 #define ODM_PF_RAS_ENA_W1S			(0x10320ULL)
 #define ODM_REQQX_INT(x)			(0x12C00ULL | ((x) << 5))
@@ -101,15 +106,25 @@
 #define ODM_MBOX_VF_PF_INT_ENA_W1C		(0x16310ULL)
 #define ODM_MBOX_VF_PF_INT_ENA_W1S		(0x16318ULL)
 #define ODM_REQQ_GENBUFF_TH_LIMIT		(0x17000ULL)
+#define ODM_NCBO_ERR_INFO			(0x17200ULL)
+#define ODM_NCBO_ERR_INT			(0x17300ULL)
+
 #define ODM_TH_VAL				(0x108030A020C01040ULL)
 
+#define ODM_PF_RAS_IRQ				(0x20)
 #define ODM_MBOX_VF_PF_IRQ			(0x21)
+#define ODM_NCBO_ERR_IRQ			(0x22)
 
 #define ODM_DEV_INIT		0x1
 #define ODM_DEV_CLOSE		0x2
 #define ODM_QUEUE_OPEN		0x3
 #define ODM_QUEUE_CLOSE		0x4
 #define ODM_REG_DUMP		0x5
+
+struct odm_irq_mem {
+	struct odm_dev *odm_pf;
+	uint16_t index;
+};
 
 struct pmem_data {
 	uint64_t rsvd;
@@ -121,6 +136,8 @@ struct odm_dev {
 	int total_vfs;
 	int maxq_per_vf;
 	int vfs_in_use;
+	int num_vecs;
+	struct odm_irq_mem *irq_mem;
 };
 
 /* ODM PF functions */
