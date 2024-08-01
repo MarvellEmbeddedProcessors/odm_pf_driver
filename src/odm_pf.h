@@ -25,6 +25,7 @@
 
 #define ODM_MAX_ENGINES			2
 #define ODM_MAX_VFS			16
+#define ODM_MAX_QUEUES			32
 
 /* FIFO in terms of KB */
 #define ODM_ENG_MAX_FIFO		128
@@ -120,6 +121,43 @@
 #define ODM_QUEUE_OPEN		0x3
 #define ODM_QUEUE_CLOSE		0x4
 #define ODM_REG_DUMP		0x5
+#define ODM_MBOX_THREAD_QUIT	0x6
+
+struct odm_mbox_dev_msg_t {
+	/* Response code */
+	uint64_t rsp : 8;
+	/* Number of VFs */
+	uint64_t nvfs : 2;
+	uint64_t err : 6;
+	/* Reserved */
+	uint64_t rsvd : 48;
+};
+
+struct odm_mbox_queue_msg_t {
+	/* Command code */
+	uint64_t cmd : 8;
+	/* VF ID to configure */
+	uint64_t vf_id : 8;
+	/* Queue index in VF */
+	uint64_t q_idx : 8;
+	/* Reserved */
+	uint64_t rsvd : 40;
+};
+
+union odm_mbox_msg_t {
+	uint64_t u[2];
+	struct {
+		struct odm_mbox_dev_msg_t d;
+		struct odm_mbox_queue_msg_t q;
+	};
+};
+
+struct odm_mbox_work {
+	struct odm_dev *odm_pf;
+	union odm_mbox_msg_t msg;
+	pthread_mutex_t lock;
+	pthread_cond_t cond;
+};
 
 struct odm_irq_mem {
 	struct odm_dev *odm_pf;
@@ -138,6 +176,9 @@ struct odm_dev {
 	int vfs_in_use;
 	int num_vecs;
 	struct odm_irq_mem *irq_mem;
+	bool setup_done[ODM_MAX_VFS];
+	pthread_t thread[ODM_MAX_VFS];
+	struct odm_mbox_work mbox_work[ODM_MAX_VFS];
 };
 
 /* ODM PF functions */
