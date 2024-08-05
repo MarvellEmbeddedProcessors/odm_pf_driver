@@ -6,10 +6,8 @@
 
 #include <stdbool.h>
 
-#define UUID_STRLEN 37
 #define UUID_LEN 16
-
-extern uint8_t uuid_gbl[];
+#define UUID_STRLEN 37
 
 /* UUID packed form */
 struct uuid_t {

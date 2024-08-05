@@ -218,7 +218,6 @@ vfio_pci_device_setup(struct vfio_pci_device *pdev)
 	if (group_fd < 0)
 		return -1;
 
-	memcpy(pdev->uuid, uuid_gbl, UUID_LEN);
 	rc = ioctl(group_fd, VFIO_GROUP_GET_STATUS, &group_status);
 	if (rc < 0) {
 		log_write(LOG_ERR, "%s: failed to get group status, %s\n", pdev->name,

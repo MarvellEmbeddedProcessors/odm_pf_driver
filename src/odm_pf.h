@@ -5,8 +5,15 @@
 #ifndef __ODM_PF_H__
 #define __ODM_PF_H__
 
-#include "vfio_pci.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <signal.h>
+
 #include "errno.h"
+#include "log.h"
+#include "vfio_pci.h"
+#include "uuid.h"
 
 #ifndef BIT_ULL
 #define BIT_ULL(nr) (1ULL << (nr))
@@ -168,6 +175,11 @@ struct pmem_data {
 	uint64_t rsvd;
 };
 
+struct odm_dev_config {
+	uint32_t eng_sel;
+	uint8_t uuid_gbl[UUID_LEN];
+};
+
 struct odm_dev {
 	struct vfio_pci_device pdev;
 	struct pmem_data *pmem;
@@ -182,7 +194,7 @@ struct odm_dev {
 };
 
 /* ODM PF functions */
-struct odm_dev *odm_pf_probe(void);
+struct odm_dev *odm_pf_probe(struct odm_dev_config *dev_cfg);
 void odm_pf_release(struct odm_dev *odm_pf);
 
 static inline void

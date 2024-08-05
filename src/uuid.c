@@ -9,8 +9,6 @@
 
 #include "uuid.h"
 
-uint8_t uuid_gbl[UUID_LEN];
-
 static void
 uuid_pack(const struct uuid_t *uu, uint8_t *uuid_gbl)
 {

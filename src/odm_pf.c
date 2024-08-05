@@ -1,19 +1,9 @@
 /* SPDX-License-Identifier: Marvell-MIT
  * Copyright (c) 2024 Marvell.
  */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <signal.h>
-
-#include "log.h"
 #include "odm_pf.h"
 #include "pmem.h"
-#include "vfio_pci.h"
 #include "vfio_pci_irq.h"
-
-extern uint32_t eng_sel;
 
 static void
 odm_queue_reset(struct odm_dev *odm_pf, uint8_t qid)
@@ -312,7 +302,7 @@ irq_unregister:
 }
 
 static int
-odm_init(struct odm_dev *odm_pf)
+odm_init(struct odm_dev *odm_pf, struct odm_dev_config *dev_cfg)
 {
 	uint64_t reg = 0ULL;
 	int i;
@@ -336,11 +326,7 @@ odm_init(struct odm_dev *odm_pf)
 	reg =  (reg & ~0x3ff) | (0x200 & 0x3ff);
 	odm_reg_write(odm_pf, ODM_NCB_CFG, reg);
 
-	if (eng_sel)
-		reg = eng_sel;
-	else
-		reg = 0xAAAAAAAA;
-	odm_reg_write(odm_pf, ODM_DMA_INTL_SEL, reg);
+	odm_reg_write(odm_pf, ODM_DMA_INTL_SEL, dev_cfg->eng_sel);
 
 	return 0;
 }
@@ -359,7 +345,7 @@ odm_fini(struct odm_dev *odm_pf)
 }
 
 struct odm_dev *
-odm_pf_probe()
+odm_pf_probe(struct odm_dev_config *dev_cfg)
 {
 	struct odm_dev *odm_pf;
 	int err;
@@ -371,6 +357,7 @@ odm_pf_probe()
 	}
 
 	strncpy(odm_pf->pdev.name, ODM_PF_PCI_BDF, sizeof(odm_pf->pdev.name));
+	memcpy(odm_pf->pdev.uuid, dev_cfg->uuid_gbl, UUID_LEN);
 	if (vfio_pci_device_setup(&odm_pf->pdev)) {
 		log_write(LOG_ERR, "Failed to setup vfio pci device\n");
 		goto free_pf;
@@ -383,7 +370,7 @@ odm_pf_probe()
 	log_write(LOG_DEBUG, "%s: Probe successful\n", odm_pf->pdev.name);
 
 	/* Initialize global PF registers */
-	err = odm_init(odm_pf);
+	err = odm_init(odm_pf, dev_cfg);
 	if (err) {
 		log_write(LOG_ERR, "Failed to initialize odm\n");
 		goto free_pmem;

@@ -17,8 +17,6 @@
 #include "uuid.h"
 #include "vfio_pci.h"
 
-uint32_t eng_sel;
-static struct odm_dev *odm_pf;
 static volatile sig_atomic_t quit_signal;
 
 enum {
@@ -59,10 +57,15 @@ int
 main(int argc, char *argv[])
 {
 	bool do_self_test = false, console_logging_enabled = false;
+	struct odm_dev_config dev_cfg;
+	struct odm_dev *odm_pf;
 	int log_lvl = LOG_INFO;
 	int option_index;
 	int opt, rc = 0;
 	char **argvopt;
+
+	/* Initialize the config with default values */
+	dev_cfg.eng_sel = 0xAAAAAAAA;
 
 	argvopt = argv;
 	while ((opt = getopt_long(argc, argvopt, "csl:e:",
@@ -82,13 +85,13 @@ main(int argc, char *argv[])
 			do_self_test = true;
 			break;
 		case OPT_VFIO_VF_TOKEN_NUM:
-			if (parse_uuid(optarg, uuid_gbl) < 0) {
+			if (parse_uuid(optarg, dev_cfg.uuid_gbl) < 0) {
 				fprintf(stderr, "invalid parameters for --vfio-vf-token");
 				print_usage(argv[0]);
 			}
 			break;
 		case 'e':
-			eng_sel = strtoul(optarg, NULL, 16);
+			dev_cfg.eng_sel = strtoul(optarg, NULL, 16);
 			break;
 		default:
 			print_usage(argv[0]);
@@ -98,9 +101,9 @@ main(int argc, char *argv[])
 	log_init("odm_pf", log_lvl, console_logging_enabled);
 
 	if (do_self_test)
-		odm_pf_selftest();
+		odm_pf_selftest(&dev_cfg);
 
-	odm_pf = odm_pf_probe();
+	odm_pf = odm_pf_probe(&dev_cfg);
 	if (!odm_pf) {
 		log_write(LOG_ERR, "Failed to probe ODM PF\n");
 		rc = -1;

@@ -43,13 +43,13 @@ test_pmem()
 }
 
 static void
-test_odm_register_access()
+test_odm_register_access(struct odm_dev_config *dev_cfg)
 {
 	volatile uint64_t *odm_reg;
 	struct odm_dev *odm_pf;
 	uint64_t val;
 
-	odm_pf = odm_pf_probe();
+	odm_pf = odm_pf_probe(dev_cfg);
 	assert(odm_pf != NULL);
 
 #define TEST_REG_VAL 0x12345678
@@ -73,14 +73,14 @@ test_odm_irq_handle(void *data)
 }
 
 static void
-test_odm_vfio_pci_irq()
+test_odm_vfio_pci_irq(struct odm_dev_config *dev_cfg)
 {
 	struct odm_dev *odm_pf;
 	bool interrupt = false;
 	uint64_t data = 1;
 	int rc;
 
-	odm_pf = odm_pf_probe();
+	odm_pf = odm_pf_probe(dev_cfg);
 	assert(odm_pf != NULL);
 
 #define TEST_MSIX_VEC 10
@@ -104,11 +104,11 @@ test_odm_vfio_pci_irq()
 }
 
 void
-odm_pf_selftest()
+odm_pf_selftest(struct odm_dev_config *dev_cfg)
 {
 	test_pmem();
-	test_odm_register_access();
-	test_odm_vfio_pci_irq();
+	test_odm_register_access(dev_cfg);
+	test_odm_vfio_pci_irq(dev_cfg);
 
 	log_write(LOG_INFO, "ODM PF selftest passed\n");
 }
