@@ -17,6 +17,7 @@
 #include "uuid.h"
 #include "vfio_pci.h"
 
+uint32_t eng_sel;
 static struct odm_dev *odm_pf;
 static volatile sig_atomic_t quit_signal;
 
@@ -43,12 +44,14 @@ signal_handler(int sig_num)
 void
 print_usage(const char *prog_name)
 {
-	fprintf(stderr, "Usage: %s [-c] [-l log_level] [-s] --vfio-vf-token uuid\n", prog_name);
+	fprintf(stderr, "Usage: %s [-c] [-l log_level] [-s] [-e eng_sel] --vfio-vf-token uuid\n",
+		prog_name);
 	fprintf(stderr, "  -c             Enable console logging (default disabled)\n");
 	fprintf(stderr, "  -l log_level   Set global log level (0-7) (default LOG_INFO)\n");
 	fprintf(stderr, "  -s             Run self test\n");
 	fprintf(stderr, "  --vfio-vf-token uuid  Randomly generated vf token to be used by both PF"
 		"and VF\n");
+	fprintf(stderr, "  -e eng_sel     Set the internal DMA engine to queue mapping\n");
 	exit(EXIT_FAILURE);
 }
 
@@ -62,7 +65,7 @@ main(int argc, char *argv[])
 	char **argvopt;
 
 	argvopt = argv;
-	while ((opt = getopt_long(argc, argvopt, "csl:",
+	while ((opt = getopt_long(argc, argvopt, "csl:e:",
 				  long_options, &option_index)) != EOF) {
 		switch (opt) {
 		case 'c':
@@ -83,6 +86,9 @@ main(int argc, char *argv[])
 				fprintf(stderr, "invalid parameters for --vfio-vf-token");
 				print_usage(argv[0]);
 			}
+			break;
+		case 'e':
+			eng_sel = strtoul(optarg, NULL, 16);
 			break;
 		default:
 			print_usage(argv[0]);

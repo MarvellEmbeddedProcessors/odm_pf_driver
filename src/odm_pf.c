@@ -13,6 +13,8 @@
 #include "vfio_pci.h"
 #include "vfio_pci_irq.h"
 
+extern uint32_t eng_sel;
+
 static void
 odm_queue_reset(struct odm_dev *odm_pf, uint8_t qid)
 {
@@ -333,6 +335,12 @@ odm_init(struct odm_dev *odm_pf)
 	reg = odm_reg_read(odm_pf, ODM_NCB_CFG);
 	reg =  (reg & ~0x3ff) | (0x200 & 0x3ff);
 	odm_reg_write(odm_pf, ODM_NCB_CFG, reg);
+
+	if (eng_sel)
+		reg = eng_sel;
+	else
+		reg = 0xAAAAAAAA;
+	odm_reg_write(odm_pf, ODM_DMA_INTL_SEL, reg);
 
 	return 0;
 }
