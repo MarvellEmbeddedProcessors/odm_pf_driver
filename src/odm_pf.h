@@ -178,6 +178,7 @@ struct pmem_data {
 struct odm_dev_config {
 	uint32_t eng_sel;
 	uint8_t uuid_gbl[UUID_LEN];
+	uint8_t num_vfs;
 };
 
 struct odm_dev {

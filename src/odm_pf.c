@@ -47,42 +47,61 @@ odm_queues_fini(struct odm_dev *odm_pf, uint8_t vf_id)
 	odm_pf->setup_done[vf_id] = false;
 }
 
-void
-odm_pf_update_num_vfs(struct odm_dev *odm_pf)
+static int
+odm_pf_create_vfs(struct odm_dev_config *dev_cfg)
 {
 	char sysfs_path[256];
-	uint64_t reg_val;
-	int num_vfs;
+	char str[3];
 	FILE *file;
+
+	switch(dev_cfg->num_vfs) {
+		case 2:
+			str[0] = '2';
+			str[1] = '\0';
+			break;
+		case 4:
+			str[0] = '4';
+			str[1] = '\0';
+			break;
+		case 8:
+			str[0] = '8';
+			str[1] = '\0';
+			break;
+		case 16:
+			str[0] = '1';
+			str[1] = '6';
+			str[2] = '\0';
+			break;
+		default:
+			str[0] = '4';
+			str[1] = '\0';
+	}
 
 	snprintf(sysfs_path, sizeof(sysfs_path), "/sys/bus/pci/devices/%s/sriov_numvfs",
 		 ODM_PF_PCI_BDF);
-	file = fopen(sysfs_path, "r");
+	file = fopen(sysfs_path, "w");
 	if (file == NULL) {
-		log_write(LOG_ERR, "Could not open the file to read\n");
-		return;
+		log_write(LOG_ERR, "Could not open the file to write\n");
+		return -1;
 	}
 
-	if (fscanf(file, "%x", &num_vfs) != 1) {
-		log_write(LOG_ERR, "Could not read the value\n");
+	if (fprintf(file, "%s", "0") < 0) {
+		log_write(LOG_ERR, "Could not reset the num_vfs to 0\n");
 		goto close_fd;
 	}
+	fclose(file);
 
-	if ((num_vfs > ODM_MAX_VFS) || (num_vfs & (num_vfs - 1))) {
-		log_write(LOG_ERR, "Unsupported number of VFs\n");
+	file = fopen(sysfs_path, "w");
+	if (fprintf(file, "%s", str) < 0) {
+		log_write(LOG_ERR, "Could not create %d number of VFs.\n", dev_cfg->num_vfs);
 		goto close_fd;
 	}
-
-	if (num_vfs != odm_pf->total_vfs) {
-		odm_pf->total_vfs = num_vfs;
-		odm_pf->maxq_per_vf = ODM_MAX_QUEUES / num_vfs;
-		reg_val = odm_reg_read(odm_pf, ODM_CTL);
-		reg_val = (reg_val & ~(0x3 << 4)) | (((__builtin_ffs(num_vfs) - 2) & 0x3) << 4);
-		odm_reg_write(odm_pf, ODM_CTL, reg_val);
-	}
+	fclose(file);
+	return 0;
 
 close_fd:
 	fclose(file);
+	return -1;
 }
 
 void *
@@ -104,9 +123,6 @@ odm_vfpf_mbox_thread(void *mbox_work)
 		vf_id = work->msg.q.vf_id;
 		q_idx = work->msg.q.q_idx;
 		switch (work->msg.q.cmd) {
-			case ODM_DEV_INIT:
-				odm_pf_update_num_vfs(odm_pf);
-				break;
 			case ODM_QUEUE_OPEN:
 				odm_queue_init(odm_pf, vf_id, q_idx);
 				break;
@@ -318,15 +334,21 @@ odm_init(struct odm_dev *odm_pf, struct odm_dev_config *dev_cfg)
 	reg = ODM_DMA_CONTROL_ZBWCSEN;
 	reg |= ODM_DMA_CONTROL_DMA_ENB(0x3);
 	odm_reg_write(odm_pf, ODM_DMA_CONTROL, reg);
-	odm_reg_write(odm_pf, ODM_CTL, ODM_CTL_EN);
 	odm_reg_write(odm_pf, ODM_REQQ_GENBUFF_TH_LIMIT, ODM_TH_VAL);
 
 	/* Configure the MOLR to max value of 512 */
 	reg = odm_reg_read(odm_pf, ODM_NCB_CFG);
 	reg =  (reg & ~0x3ff) | (0x200 & 0x3ff);
 	odm_reg_write(odm_pf, ODM_NCB_CFG, reg);
-
 	odm_reg_write(odm_pf, ODM_DMA_INTL_SEL, dev_cfg->eng_sel);
+
+	if (odm_pf_create_vfs(dev_cfg))
+		return -1;
+
+	odm_pf->vfs_in_use = dev_cfg->num_vfs;
+	odm_pf->maxq_per_vf = ODM_MAX_QUEUES / dev_cfg->num_vfs;
+	reg = (((__builtin_ffs(dev_cfg->num_vfs) - 2) & 0x3) << 4) | ODM_CTL_EN;
+	odm_reg_write(odm_pf, ODM_CTL, reg);
 
 	return 0;
 }

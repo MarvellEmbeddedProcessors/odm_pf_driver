@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 EnvironmentFile=/etc/odm_pf_driver.cfg
-ExecStart=/usr/local/bin/odm_pf_driver -l 3 -e $ENG_SEL --vfio-vf-token $UUID
+ExecStart=/usr/local/bin/odm_pf_driver -l 3 -e $ENG_SEL --vfio-vf-token $UUID --num_vfs $NUM_VFS
 Restart=always
 User=root
 StandardOutput=journal

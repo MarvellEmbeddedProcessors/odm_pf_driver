@@ -61,12 +61,13 @@ The driver takes the following arguments:
 
 .. code-block:: shell
 
-        odm_pf_driver [-c] [-l log_level] [-s] [-e eng_sel] --vfio-vf-token uuid
+        odm_pf_driver [-c] [-l log_level] [-s] [-e eng_sel] [--num_vfs n] --vfio-vf-token uuid
         -c           : Enable console logging. Default is disabled.
         -l log_level : Set the log level. The default log level is LOG_INFO.
         -s           : Run selftest. Default is disabled.
         -e eng_sel   : Set the internal DMA engine to queue mapping.
         --vfio-vf-token uuid : Randomly generated vf token to be used by both PF and VF.
+        --num_vfs n : Create n number of VFs. Valid values are: 0,2,4,8,16. Default value is 4.
 
 When the log level is LOG_INFO, only log messages up to the INFO level are
 displayed. The log levels correspond to the syslog levels are as follows:
@@ -92,6 +93,8 @@ queue.
 ``uuid`` is a value generated using the cmd 'uuidgen'. This value
 need to be passed to both PF and VF as vfio-vf-token.
 
+``n`` is the number of VFs to vreate. If no value is passed, default 4 VFs will be
+created. The valid number of VFs are: 2,4,8,16.
 
 Running the driver as a systemd Service
 ----------------------------------------

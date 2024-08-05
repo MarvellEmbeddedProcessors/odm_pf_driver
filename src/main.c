@@ -22,11 +22,13 @@ static volatile sig_atomic_t quit_signal;
 enum {
 	OPT_LONG_MIN_NUM = 256,
 	OPT_VFIO_VF_TOKEN_NUM,
+	OPT_NUM_VFS,
 	OPT_LONG_MAX_NUM
 };
 
 const struct option long_options[] = {
 	{"vfio-vf-token",     1, NULL, OPT_VFIO_VF_TOKEN_NUM},
+	{"num_vfs",           1, NULL, OPT_NUM_VFS},
 	{0,                   0, NULL, 0                    }
 };
 
@@ -42,14 +44,16 @@ signal_handler(int sig_num)
 void
 print_usage(const char *prog_name)
 {
-	fprintf(stderr, "Usage: %s [-c] [-l log_level] [-s] [-e eng_sel] --vfio-vf-token uuid\n",
-		prog_name);
+	fprintf(stderr, "Usage: %s [-c] [-l log_level] [-s] [-e eng_sel] --vfio-vf-token uuid\n"
+		"--num_vfs n\n", prog_name);
 	fprintf(stderr, "  -c             Enable console logging (default disabled)\n");
 	fprintf(stderr, "  -l log_level   Set global log level (0-7) (default LOG_INFO)\n");
 	fprintf(stderr, "  -s             Run self test\n");
 	fprintf(stderr, "  --vfio-vf-token uuid  Randomly generated vf token to be used by both PF"
 		"and VF\n");
 	fprintf(stderr, "  -e eng_sel     Set the internal DMA engine to queue mapping\n");
+	fprintf(stderr, "  --num_vfs n    Create n number of VFs. Valid values are: 2,4,8,16"
+		"Default value is 4\n");
 	exit(EXIT_FAILURE);
 }
 
@@ -63,9 +67,11 @@ main(int argc, char *argv[])
 	int option_index;
 	int opt, rc = 0;
 	char **argvopt;
+	int num_vfs;
 
 	/* Initialize the config with default values */
 	dev_cfg.eng_sel = 0xAAAAAAAA;
+	dev_cfg.num_vfs = 4;
 
 	argvopt = argv;
 	while ((opt = getopt_long(argc, argvopt, "csl:e:",
@@ -92,6 +98,14 @@ main(int argc, char *argv[])
 			break;
 		case 'e':
 			dev_cfg.eng_sel = strtoul(optarg, NULL, 16);
+			break;
+		case OPT_NUM_VFS:
+			num_vfs = atoi(optarg);
+			if (num_vfs > ODM_MAX_VFS || (num_vfs & (num_vfs - 1))) {
+				fprintf(stderr, "Invalid number of VFs: %d\n", num_vfs);
+				print_usage(argv[0]);
+			}
+			dev_cfg.num_vfs = num_vfs;
 			break;
 		default:
 			print_usage(argv[0]);
