@@ -61,10 +61,12 @@ The driver takes the following arguments:
 
 .. code-block:: shell
 
-        odm_pf_driver [-c] [-l log_level] [-s]
+        odm_pf_driver [-c] [-l log_level] [-s] [-e eng_sel] --vfio-vf-token uuid
         -c           : Enable console logging. Default is disabled.
         -l log_level : Set the log level. The default log level is LOG_INFO.
         -s           : Run selftest. Default is disabled.
+        -e eng_sel   : Set the internal DMA engine to queue mapping.
+        --vfio-vf-token uuid : Randomly generated vf token to be used by both PF and VF.
 
 When the log level is LOG_INFO, only log messages up to the INFO level are
 displayed. The log levels correspond to the syslog levels are as follows:
@@ -77,6 +79,18 @@ displayed. The log levels correspond to the syslog levels are as follows:
 - 5 - LOG_NOTICE
 - 6 - LOG_INFO
 - 7 - LOG_DEBUG
+
+``eng_sel`` used to map the DMA engines to VF queues. There are 32 DMA VF
+queues. Each bit in the value correspond to a DMA VF queue. 0 will map
+the DMA engine-0 to that queue and 1 will map the DMA engine-1 to that
+queue.
+
+- 0xCCCCCCCC - It will map queues and engines like below:
+               Engine-0 to queues 0,1,4,5,8,9,12,13,16,17,20,21,24,25,28,29
+               Engine-1 to queues 2,3,6,7,10,11,14,15,18,19,22,23,26,27,30,31
+
+``uuid`` is a value generated using the cmd 'uuidgen'. This value
+need to be passed to both PF and VF as vfio-vf-token.
 
 
 Running the driver as a systemd Service
@@ -129,6 +143,19 @@ the driver arguments. For example, to set the log level to LOG_DEBUG, the
    ExecStart=/usr/local/bin/odm_pf_driver -l 7
 
 After updating the `odm_pf_driver.service` file, run the following commands:
+
+.. code-block:: shell
+
+   sudo systemctl daemon-reload
+   sudo systemctl restart odm_pf_driver.service
+
+Using config file to update the arguments in the service
+--------------------------------------------------------
+
+The `odm_pf.cfg` file can be updated with the new values for UUID and eng_sel.
+The location of file will be: /etc/odm_pf.cfg
+
+After updating the `odm_pf.cfg` file, run the following commands:
 
 .. code-block:: shell
 

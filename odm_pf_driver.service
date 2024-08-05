@@ -3,7 +3,8 @@ Description=ODM PF driver service
 After=network.target
 
 [Service]
-ExecStart=/usr/local/bin/odm_pf_driver
+EnvironmentFile=/etc/odm_pf_driver.cfg
+ExecStart=/usr/local/bin/odm_pf_driver -l 3 -e $ENG_SEL --vfio-vf-token $UUID
 Restart=always
 User=root
 StandardOutput=journal
