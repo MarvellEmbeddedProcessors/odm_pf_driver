@@ -1,4 +1,7 @@
 #!/bin/bash
+# SPDX-License-Identifier: Marvell-MIT
+# Copyright (c) 2024 Marvell.
+
 FLAG_FILE="/var/run/uuid_generated"
 CFG_FILE="/etc/odm_pf_driver.cfg"
 PCI_DEVICE="0000:08:00.0"
