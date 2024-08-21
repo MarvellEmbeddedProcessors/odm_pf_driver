@@ -8,6 +8,9 @@ PCI_DEVICE="0000:08:00.0"
 DRIVER="vfio-pci"
 UUID_LINE="UUID="
 
+# Check if uuidgen is available
+command -v uuidgen &> /dev/null 2>&1 || (echo "uuid isn't installed" && return 127)
+
 # Check if the UUID has already been generated
 if [ ! -f "$FLAG_FILE" ]; then
     # Generate a new UUID
@@ -31,3 +34,4 @@ echo "Unbinding PCI device $PCI_DEVICE"
 echo $PCI_DEVICE > /sys/bus/pci/devices/$PCI_DEVICE/driver/unbind
 echo "Binding PCI device $PCI_DEVICE to driver $DRIVER"
 echo "177d a08b" > /sys/bus/pci/drivers/vfio-pci/new_id
+return 0
