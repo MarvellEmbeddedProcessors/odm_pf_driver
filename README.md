@@ -1,11 +1,12 @@
-# SPDX-License-Identifier: Marvell-MIT
-# Copyright (c) 2024 Marvell.
+## License
+SPDX-License-Identifier: Marvell-MIT
 
-odm_pf_driver README
-====================
+## Copyright Notice
+Copyright (c) 2024 Marvell.
 
-Overview
---------
+# ODM PF driver
+
+## Overview
 
 The odm_pf_driver is a userspace application that provides ODM PF driver
 functionality. It manages the ODM PF device by initializing and configuring it,
@@ -29,53 +30,48 @@ to be passed as a VFIO token while using VFs.
 The service will also unbind the ODM PF device from the current driver and bind
 it to the vfio-pci driver.
 
-Installing the driver
-----------------------
+## Installing the driver
 
-Dependency Package
-~~~~~~~~~~~~~~~~~~
+### Dependency Package
+
 The userspace PF driver depends on the uuid package. It can be installed as
 follows:
 
-.. code-block:: shell
-
+```sh
    apt-get install uuid-runtime
+```
 
-Enable SRIOV for VFIO PCI
-~~~~~~~~~~~~~~~~~~~~~~~~~
+### Enable SRIOV for VFIO PCI
 
 Update the kernel boot arguments with option ``vfio-pci.enable_sriov=1``.
 Alternatively, you can load the ``vfio-pci`` module with ``enable_sriov``
 parameter set.
 
-.. code-block:: shell
-
+```sh
    sudo modprobe vfio-pci enable_sriov=1
+```
 
-
-Native Build and Installation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Native Build and Installation
 
 The driver can be built and installed natively using the following command:
 
-.. code-block:: shell
-
+```sh
    meson build
    ninja -C build install
+```
 
 Above command will install the driver in `/usr/local/bin/` directory, the
 service file in `/etc/systemd/system/` directory and config file and
 script in `/etc`.
 
-Cross Build and Installation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Cross Build and Installation
 
 The driver can be built for aarch64 using the following command:
 
-.. code-block:: shell
-
+```sh
    meson build --cross-file config/arm64_odyssey_linux_gcc
    ninja -C build
+```
 
 Above command will build the driver for aarch64. The binary can be found in
 `build` directory. Copy the binary to the target board and install it in
@@ -83,12 +79,11 @@ Above command will build the driver for aarch64. The binary can be found in
 `/etc/systemd/system/` directory. The config file and script can be copied
 to `/etc`.
 
-Driver application arguments
-----------------------------
+## Driver application arguments
 
 The driver takes the following arguments:
 
-.. code-block:: shell
+```sh
 
         odm_pf_driver [-c] [-l log_level] [-s] [-e eng_sel] [--num_vfs n]
         --vfio-vf-token uuid
@@ -100,6 +95,7 @@ The driver takes the following arguments:
                                and VF.
         --num_vfs n : Create n number of VFs. Valid values are: 0,2,4,8,16. The
                       default value is 8.
+```
 
 When the log level is LOG_INFO, only log messages up to the INFO level are
 displayed. The log levels correspond to the syslog levels are as follows:
@@ -127,11 +123,9 @@ be passed to both PF and VF as VFIO token.
 ``n`` is the number of VFs to create. If no value is passed, the default is
 8VFs. The valid numbers of VFs are: 2,4,8,16.
 
-Running the driver as a systemd Service
-----------------------------------------
+## Running the driver as a systemd Service
 
-Installing and starting the service
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Installing and starting the service
 
 The driver can be started as a systemd service using the
 `odm_pf_driver.service` file. Follow these steps to start the service:
@@ -154,8 +148,7 @@ The driver can be started as a systemd service using the
 6. Once the above files are installed at respective location, the service will
 load automatically on every reboot and the steps 1 to 5 are not required.
 
-Monitoring the Service
-~~~~~~~~~~~~~~~~~~~~~~~
+### Monitoring the Service
 
 The service can be monitored using the following command:
 
@@ -163,8 +156,7 @@ The service can be monitored using the following command:
 
    sudo journalctl -u odm_pf_driver.service -f
 
-Stopping the Service
-~~~~~~~~~~~~~~~~~~~~
+### Stopping the Service
 
 The service can be stopped using the following command:
 
@@ -172,8 +164,7 @@ The service can be stopped using the following command:
 
    sudo systemctl stop odm_pf_driver.service
 
-Using driver arguments in the service
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Using driver arguments in the service
 
 The `ExecStart` line in the `odm_pf_driver.service` file can be updated with
 the driver arguments. For example, to set the log level to LOG_DEBUG, the
@@ -190,8 +181,7 @@ After updating the `odm_pf_driver.service` file, run the following commands:
    sudo systemctl daemon-reload
    sudo systemctl restart odm_pf_driver.service
 
-Using config file to update the arguments in the service
---------------------------------------------------------
+## Using config file to update the arguments in the service
 
 The `odm_pf_driver.cfg` file is used to pass some command line arguments to the
 PF driver. After any change in the config file, to reflect the changes, the
@@ -201,10 +191,10 @@ The location of file will be: /etc/odm_pf_driver.cfg.
 
 Run the following commands to reload the daemon:
 
-.. code-block:: shell
-
+```sh
    sudo systemctl daemon-reload
    sudo systemctl restart odm_pf_driver.service
+```
 
 Make sure that no VFs are being used, when daemon gets reloaded.
 
@@ -226,36 +216,36 @@ driver with the option: ``-e``.
 needs to use the VF should use the same value as the VFIO token. This value is
 passed to PF driver with the option: ``--vfio-token``.
 
-Uninstalling the driver
------------------------
+## Uninstalling the driver
 
 To uninstall the driver, run the following command:
 
-.. code-block:: shell
-
+```sh
    ninja -C build uninstall
+```
 
 This command will remove the driver binary from the `/usr/local/bin/` directory
 and the service file from the `/etc/systemd/system/` directory.
 
-Running the DPDK DMA autotest app
-----------------------------------
+## Running the DPDK DMA autotest app
+
 Make sure the daemon is started and the PF userspace driver is loaded. Ensure
 that VFs for the device are created. The number of VFs should be non-zero. This
 can be verified as follows:
 
-.. code-block:: shell
-
+```sh
    cat /sys/bus/pci/devices/0000\:08\:00.0/sriov_numvfs
+```
 
 Generated VFIO token will be in the config file. It can be read as follows:
 
-.. code-block:: shell
-
+```sh
    cat /etc/odm_pf_driver.cfg
+```
 
 Run the DPDK application as follows:
 
-.. code-block:: shell
+```sh
         DPDK_TEST=dmadev_autotest ./dpdk-test
         --vfio-vf-token=<UUID value from config file> -a 0000:08:00.1
+```
