@@ -84,7 +84,6 @@ to `/etc`.
 The driver takes the following arguments:
 
 ```sh
-
         odm_pf_driver [-c] [-l log_level] [-s] [-e eng_sel] [--num_vfs n]
         --vfio-vf-token uuid
         -c           : Enable console logging. Default is disabled.
@@ -139,11 +138,11 @@ The driver can be started as a systemd service using the
    `/etc/` directory.
 5. Run the following commands:
 
-   .. code-block:: shell
-
+```sh
       sudo systemctl daemon-reload
       sudo systemctl enable odm_pf_driver.service
       sudo systemctl start odm_pf_driver.service
+```
 
 6. Once the above files are installed at respective location, the service will
 load automatically on every reboot and the steps 1 to 5 are not required.
@@ -152,17 +151,17 @@ load automatically on every reboot and the steps 1 to 5 are not required.
 
 The service can be monitored using the following command:
 
-.. code-block:: shell
-
+```sh
    sudo journalctl -u odm_pf_driver.service -f
+```
 
 ### Stopping the Service
 
 The service can be stopped using the following command:
 
-.. code-block:: shell
-
+```sh
    sudo systemctl stop odm_pf_driver.service
+```
 
 ### Using driver arguments in the service
 
@@ -170,16 +169,16 @@ The `ExecStart` line in the `odm_pf_driver.service` file can be updated with
 the driver arguments. For example, to set the log level to LOG_DEBUG, the
 `ExecStart` line can be updated as follows:
 
-.. code-block:: shell
-
+```sh
    ExecStart=/usr/local/bin/odm_pf_driver -l 7
+```
 
 After updating the `odm_pf_driver.service` file, run the following commands:
 
-.. code-block:: shell
-
+```sh
    sudo systemctl daemon-reload
    sudo systemctl restart odm_pf_driver.service
+```
 
 ## Using config file to update the arguments in the service
 
